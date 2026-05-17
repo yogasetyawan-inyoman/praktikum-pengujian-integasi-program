@@ -30,10 +30,10 @@ class LeaveRequestController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
-    {
-        //
-    }
+    // public function create()
+    // {
+    //     //
+    // }
 
     /**
      * Store a newly created resource in storage.
@@ -45,7 +45,7 @@ class LeaveRequestController extends Controller
             $data = $request->validate([
                 'start_date' => 'required|date',
                 'end_date' => 'required|date|after_or_equal:start_date',
-                'type' => 'required|string',
+                'type' => 'required|in:tahunan,sakit,bersalin',
                 'reason' => 'nullable|string',
                 'attachment' => 'nullable|file|mimes:pdf,jpg,png|max:5120'
             ]);

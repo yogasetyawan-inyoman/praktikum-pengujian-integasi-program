@@ -10,81 +10,51 @@ use App\Models\LeaveRequest;
  * ============================================================================
  * INTEGRATION TESTING - PENGUJIAN INTEGRASI PROGRAM
  * ============================================================================
- * 
- * File ini mendemonstrasikan Integration Testing dengan 3 skenario workflow
- * yang menguji multiple components bekerja bersama:
- * - Authentication Layer (Login)
- * - Controller Layer (Business Logic)
- * - Database Layer (Data Persistence)
- * 
- * Perbedaan dengan Unit Test:
- * - Unit Test: Menguji 1 function/method saja
- * - Integration Test: Menguji alur lengkap (Auth → Controller → DB)
+ *
+ * File ini disusun mengikuti skenario incremental untuk modul praktik:
+ * 1. Pegawai submit cuti
+ * 2. Pegawai melihat daftar pengajuan milik sendiri
+ * 3. Pegawai melihat detail pengajuan miliknya sendiri
+ * 4. Atasan melihat pending request dan approve
+ * 5. Atasan reject request
+ * 6. Validasi error lalu retry
+ * 7. Pegawai update request miliknya sendiri
+ * 8. Pegawai delete request miliknya sendiri
+ *
+ * Fokus pengujian:
+ * - Authentication Layer (auth:sanctum)
+ * - Authorization Layer (role middleware)
+ * - Controller Layer (business logic)
+ * - Database Layer (persistence)
  * ============================================================================
  */
 class LeaveRequestWorkflowTest extends TestCase
 {
     /**
-     * ========================================================================
-     * WORKFLOW #1: End-to-End - Pegawai Submit Cuti → Verifikasi Database
-     * ========================================================================
-     * 
-     * Skenario Bisnis:
-     * Pegawai bernama Budi ingin mengajukan cuti tahunan selama 3 hari.
-     * 
-     * Alur:
-     * 1. Budi (sebagai pegawai) submit form pengajuan cuti
-     * 2. Controller validasi data
-     * 3. Data disimpan di database dengan status 'pending'
-     * 4. Budi dapat melihat pengajuannya dalam daftar cuti
-     * 
-     * Testing Layers:
-     * ✓ Authentication: actingAs() memastikan user terautentikasi
-     * ✓ Validation: postJson() mengirim data
-     * ✓ Business Logic: Controller calculate days, set status
-     * ✓ Database: Data tersimpan di leave_requests table
-     * ✓ Query: Pegawai bisa retrieve pengajuannya
-     * 
-     * ========================================================================
+     * INCREMENTAL STEP 1: Pegawai submit cuti
      */
-    public function test_workflow_1_pegawai_submit_leave_request()
+    public function test_incremental_1_pegawai_submit_pengajuan_cuti()
     {
-        // ────────────────────────────────────────────────────────────────
-        // GIVEN: Setup awal - buat data pegawai di database
-        // ────────────────────────────────────────────────────────────────
-        $pegawai = User::factory()->pegawai()->create([
+        $pegawai = User::factory()->pegawai()->create([ //membuat user dengan role pegawai untuk keperluan testing.
             'name' => 'Budi',
             'email' => 'budi@company.com'
         ]);
 
-        // ────────────────────────────────────────────────────────────────
-        // WHEN: Pegawai submit pengajuan cuti
-        // Menggunakan actingAs() untuk simulate authenticated request
-        // ────────────────────────────────────────────────────────────────
-        $submitResponse = $this->actingAs($pegawai, 'sanctum')
-            ->postJson('/api/leave-requests', [
+        $response = $this->actingAs($pegawai, 'sanctum')
+            ->postJson('/api/leave-requests', [ //mengirim request POST dalam format JSON.
                 'start_date' => '2026-06-15',
                 'end_date' => '2026-06-17',
                 'type' => 'tahunan',
                 'reason' => 'Liburan keluarga'
             ]);
 
-        // ────────────────────────────────────────────────────────────────
-        // THEN: Verifikasi response dari controller
-        // - Status code 201 (resource created)
-        // - Data berisikan field yang expected
-        // ────────────────────────────────────────────────────────────────
-        $submitResponse->assertStatus(201)
-            ->assertJsonPath('status', 'pending')
-            ->assertJsonPath('user_id', $pegawai->id)
-            ->assertJsonPath('days', 3)
-            ->assertJsonPath('type', 'tahunan');
+        $response->assertStatus(201) //memastikan response HTTP 201 Created.
+            ->assertJsonPath('status', 'pending') //memastikan response JSON memiliki field status dengan nilai pending.
+            ->assertJsonPath('user_id', $pegawai->id) //memastikan response JSON memiliki field user_id yang sesuai dengan ID pegawai yang membuat request.
+            ->assertJsonPath('days', 3)//memastikan response JSON memiliki field days dengan nilai 3 (selisih antara end_date dan start_date).
+            ->assertJsonPath('type', 'tahunan');//memastikan response JSON memiliki field type dengan nilai tahunan.
 
-        // ────────────────────────────────────────────────────────────────
-        // THEN: Verifikasi data tersimpan di database
-        // Database harus memiliki record baru dengan nilai yang correct
-        // ────────────────────────────────────────────────────────────────
-        $this->assertDatabaseHas('leave_requests', [
+        $this->assertDatabaseHas('leave_requests', [//memastikan database memiliki record di tabel leave_requests dengan data yang sesuai.
             'user_id' => $pegawai->id,
             'type' => 'tahunan',
             'status' => 'pending',
@@ -93,203 +63,143 @@ class LeaveRequestWorkflowTest extends TestCase
             'start_date' => '2026-06-15',
             'end_date' => '2026-06-17'
         ]);
-
-        // ────────────────────────────────────────────────────────────────
-        // WHEN: Pegawai lihat daftar pengajuannya
-        // ────────────────────────────────────────────────────────────────
-        $listResponse = $this->actingAs($pegawai, 'sanctum')
-            ->getJson('/api/leave-requests');
-
-        // ────────────────────────────────────────────────────────────────
-        // THEN: Verifikasi pengajuan ada dalam daftar
-        // ────────────────────────────────────────────────────────────────
-        $listResponse->assertStatus(200)
-            ->assertJsonCount(1)
-            ->assertJsonPath('0.type', 'tahunan')
-            ->assertJsonPath('0.status', 'pending');
     }
 
     /**
-     * ========================================================================
-     * WORKFLOW #2: Role-Based Authorization - Atasan Approve Pengajuan
-     * ========================================================================
-     * 
-     * Skenario Bisnis:
-     * Pegawai submit cuti → Atasan review → Atasan approve
-     * Mendemonstrasikan: Role-based filtering, Authorization, Audit trail
-     * 
-     * Alur:
-     * 1. Pegawai submit cuti (status: pending)
-     * 2. Atasan lihat pengajuan
-     * 3. Atasan hanya melihat yang status 'pending'
-     * 4. Atasan approve pengajuan
-     * 5. Database terupdate: status=approved, approved_by=atasan_id
-     * 
-     * Testing Layers:
-     * ✓ Role-Based Query: Atasan hanya lihat pending (middleware filter)
-     * ✓ Authorization: Hanya atasan/admin bisa approve (middleware check)
-     * ✓ Business Logic: Status berubah, approved_by terisi
-     * ✓ Audit Trail: approved_by mencatat siapa yang approve
-     * 
-     * ========================================================================
+     * INCREMENTAL STEP 2: Pegawai melihat daftar pengajuannya sendiri
      */
-    public function test_workflow_2_atasan_approve_leave_request()
+    public function test_incremental_2_pegawai_melihat_daftar_pengajuannya_sendiri()
     {
-        // ────────────────────────────────────────────────────────────────
-        // GIVEN: Pegawai sudah submit cuti dengan status pending
-        // ────────────────────────────────────────────────────────────────
+        $pegawai = User::factory()->pegawai()->create();//membuat user dengan role pegawai untuk keperluan testing.
+        $pegawaiLain = User::factory()->pegawai()->create();//membuat user lain dengan role pegawai untuk memastikan data yang ditampilkan hanya milik pegawai yang sedang login.
+
+        LeaveRequest::factory()->create(['user_id' => $pegawai->id]);//membuat data pengajuan cuti untuk pegawai yang sedang login.
+        LeaveRequest::factory()->create(['user_id' => $pegawai->id]);//membuat data pengajuan cuti kedua untuk pegawai yang sedang login.
+        LeaveRequest::factory()->create(['user_id' => $pegawaiLain->id]);//membuat data pengajuan cuti untuk pegawai lain yang tidak boleh ditampilkan.
+
+        $response = $this->actingAs($pegawai, 'sanctum')//mengautentikasi sebagai pegawai yang sudah dibuat sebelumnya.
+            ->getJson('/api/leave-requests');//mengirim request GET dalam format JSON untuk mendapatkan daftar pengajuan cuti.
+
+        $response->assertStatus(200)//memastikan response HTTP 200 OK.
+            ->assertJsonCount(2)//memastikan response JSON berupa array dengan jumlah elemen 2 (hanya pengajuan milik pegawai yang sedang login).
+            ->assertJsonPath('0.user_id', $pegawai->id)//memastikan elemen pertama dalam array memiliki field user_id yang sesuai dengan ID pegawai yang sedang login.
+            ->assertJsonPath('1.user_id', $pegawai->id);//memastikan elemen kedua dalam array memiliki field user_id yang sesuai dengan ID pegawai yang sedang login.
+    }
+
+    /**
+     * INCREMENTAL STEP 3: Pegawai melihat detail pengajuan miliknya sendiri
+     */
+    public function test_incremental_3_pegawai_melihat_detail_pengajuan_miliknya_sendiri()
+    {
         $pegawai = User::factory()->pegawai()->create();
+
+        $leave = LeaveRequest::factory()->create(['user_id' => $pegawai->id]);
+
+        $response = $this->actingAs($pegawai, 'sanctum')
+            ->getJson("/api/leave-requests/{$leave->id}");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('id', $leave->id)
+            ->assertJsonPath('user_id', $pegawai->id);
+    }
+
+    /**
+     * INCREMENTAL STEP 4: Atasan melihat pending request dan approve
+     */
+    public function test_incremental_4_atasan_dapat_melihat_dan_menyetujui_pengajuan()
+    {
+        $pegawai = User::factory()->pegawai()->create();
+        $atasan = User::factory()->atasan()->create();
+
         $leave = LeaveRequest::factory()->create([
             'user_id' => $pegawai->id,
             'status' => 'pending'
         ]);
 
-        // ────────────────────────────────────────────────────────────────
-        // GIVEN: Atasan sudah ada di database
-        // ────────────────────────────────────────────────────────────────
-        $atasan = User::factory()->atasan()->create();
-
-        // ────────────────────────────────────────────────────────────────
-        // WHEN: Atasan lihat daftar pengajuan cuti
-        // Controller filter: hanya tampilkan status 'pending' untuk atasan
-        // ────────────────────────────────────────────────────────────────
-        $atasanViewResponse = $this->actingAs($atasan, 'sanctum')
+        $viewResponse = $this->actingAs($atasan, 'sanctum')
             ->getJson('/api/leave-requests');
 
-        // ────────────────────────────────────────────────────────────────
-        // THEN: Atasan hanya lihat pengajuan dengan status pending
-        // Ini menunjukkan role-based filtering bekerja dengan benar
-        // ────────────────────────────────────────────────────────────────
-        $atasanViewResponse->assertStatus(200)
+        $viewResponse->assertStatus(200)
             ->assertJsonCount(1)
             ->assertJsonPath('0.status', 'pending')
             ->assertJsonPath('0.user_id', $pegawai->id);
 
-        // ────────────────────────────────────────────────────────────────
-        // WHEN: Atasan approve pengajuan cuti
-        // Endpoint hanya accessible untuk role atasan/admin (middleware check)
-        // ────────────────────────────────────────────────────────────────
         $approveResponse = $this->actingAs($atasan, 'sanctum')
             ->postJson("/api/leave-requests/{$leave->id}/approve");
 
-        // ────────────────────────────────────────────────────────────────
-        // THEN: Response menunjukkan status berubah ke approved
-        // approved_by field terupdate dengan atasan ID (audit trail)
-        // ────────────────────────────────────────────────────────────────
         $approveResponse->assertStatus(200)
             ->assertJsonPath('status', 'approved')
             ->assertJsonPath('approved_by', $atasan->id);
 
-        // ────────────────────────────────────────────────────────────────
-        // THEN: Database terupdate dengan status baru
-        // Data integrity: response harus sesuai dengan database
-        // ────────────────────────────────────────────────────────────────
         $this->assertDatabaseHas('leave_requests', [
             'id' => $leave->id,
             'status' => 'approved',
             'approved_by' => $atasan->id
         ]);
-
-        // ────────────────────────────────────────────────────────────────
-        // WHEN: Pegawai lihat pengajuannya setelah diapprove
-        // ────────────────────────────────────────────────────────────────
-        $pegawaiViewResponse = $this->actingAs($pegawai, 'sanctum')
-            ->getJson("/api/leave-requests/{$leave->id}");
-
-        // ────────────────────────────────────────────────────────────────
-        // THEN: Pegawai bisa melihat pengajuannya sudah approved
-        // Menunjukkan perubahan data terlihat dari semua user
-        // ────────────────────────────────────────────────────────────────
-        $pegawaiViewResponse->assertStatus(200)
-            ->assertJsonPath('status', 'approved')
-            ->assertJsonPath('approved_by', $atasan->id);
     }
 
     /**
-     * ========================================================================
-     * WORKFLOW #3: Validation & Error Handling - Invalid Data → Error → Retry
-     * ========================================================================
-     * 
-     * Skenario Bisnis:
-     * Pegawai submit dengan data invalid → dapat error → fix data → resubmit
-     * Mendemonstrasikan: Validation layer, error messages, data integrity
-     * 
-     * Alur:
-     * 1. Pegawai submit dengan tanggal invalid (end_date < start_date)
-     * 2. Server return HTTP 422 + validation error message
-     * 3. Verifikasi data TIDAK tersimpan (data integrity)
-     * 4. Pegawai submit lagi dengan data valid
-     * 5. Kali kedua berhasil tersimpan
-     * 
-     * Testing Layers:
-     * ✓ Validation: Input validation di controller
-     * ✓ Error Response: HTTP 422 + error message details
-     * ✓ Data Integrity: Invalid data tidak masuk database
-     * ✓ Retry Logic: User bisa resubmit setelah fix data
-     * 
-     * ========================================================================
+     * INCREMENTAL STEP 5: Atasan reject request
      */
-    public function test_workflow_3_validation_error_and_retry()
+    public function test_incremental_5_atasan_dapat_menolak_pengajuan()
     {
-        // ────────────────────────────────────────────────────────────────
-        // GIVEN: Pegawai terautentikasi
-        // ────────────────────────────────────────────────────────────────
+        $pegawai = User::factory()->pegawai()->create();
+        $atasan = User::factory()->atasan()->create();
+
+        $leave = LeaveRequest::factory()->create([
+            'user_id' => $pegawai->id,
+            'status' => 'pending'
+        ]);
+
+        $response = $this->actingAs($atasan, 'sanctum')
+            ->postJson("/api/leave-requests/{$leave->id}/reject");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('status', 'rejected')
+            ->assertJsonPath('approved_by', $atasan->id);
+
+        $this->assertDatabaseHas('leave_requests', [
+            'id' => $leave->id,
+            'status' => 'rejected',
+            'approved_by' => $atasan->id
+        ]);
+    }
+
+    /**
+     * INCREMENTAL STEP 6: Validasi error lalu retry
+     */
+    public function test_incremental_6_validasi_gagal_dan_mengulang()
+    {
         $pegawai = User::factory()->pegawai()->create();
 
-        // ────────────────────────────────────────────────────────────────
-        // WHEN: Pegawai submit dengan data INVALID
-        // end_date (2026-06-10) < start_date (2026-06-15) = SALAH!
-        // Ini melanggar business rule: end_date >= start_date
-        // ────────────────────────────────────────────────────────────────
         $invalidResponse = $this->actingAs($pegawai, 'sanctum')
             ->postJson('/api/leave-requests', [
                 'start_date' => '2026-06-15',
-                'end_date' => '2026-06-10',  // ❌ INVALID: lebih kecil dari start_date
+                'end_date' => '2026-06-10',// end_date sebelum start_date
                 'type' => 'tahunan',
                 'reason' => 'Liburan'
             ]);
 
-        // ────────────────────────────────────────────────────────────────
-        // THEN: Server return error response
-        // - Status code 422 (Unprocessable Entity)
-        // - Errors array berisi detail masalah di field mana
-        // ────────────────────────────────────────────────────────────────
         $invalidResponse->assertStatus(422)
             ->assertJsonValidationErrors(['end_date']);
 
-        // ────────────────────────────────────────────────────────────────
-        // THEN: Data TIDAK tersimpan di database (data integrity)
-        // Invalid data tidak boleh masuk database
-        // ────────────────────────────────────────────────────────────────
         $this->assertDatabaseMissing('leave_requests', [
             'user_id' => $pegawai->id,
             'reason' => 'Liburan'
         ]);
 
-        // ────────────────────────────────────────────────────────────────
-        // WHEN: Pegawai submit LAGI dengan data VALID
-        // Kali ini: end_date (2026-06-20) > start_date (2026-06-15) = BENAR
-        // ────────────────────────────────────────────────────────────────
         $validResponse = $this->actingAs($pegawai, 'sanctum')
             ->postJson('/api/leave-requests', [
                 'start_date' => '2026-06-15',
-                'end_date' => '2026-06-20',  // ✓ VALID: lebih besar dari start_date
+                'end_date' => '2026-06-20',
                 'type' => 'tahunan',
                 'reason' => 'Liburan'
             ]);
 
-        // ────────────────────────────────────────────────────────────────
-        // THEN: Submit berhasil kali kedua
-        // - Status code 201 (resource created)
-        // - Perhitungan days: 15-20 Juni = 6 hari
-        // ────────────────────────────────────────────────────────────────
         $validResponse->assertStatus(201)
             ->assertJsonPath('status', 'pending')
             ->assertJsonPath('days', 6);
 
-        // ────────────────────────────────────────────────────────────────
-        // THEN: Data tersimpan di database (hanya data valid)
-        // ────────────────────────────────────────────────────────────────
         $this->assertDatabaseHas('leave_requests', [
             'user_id' => $pegawai->id,
             'type' => 'tahunan',
@@ -297,19 +207,105 @@ class LeaveRequestWorkflowTest extends TestCase
             'days' => 6,
             'reason' => 'Liburan'
         ]);
+    }
 
-        // ────────────────────────────────────────────────────────────────
-        // WHEN: Pegawai lihat pengajuannya
-        // ────────────────────────────────────────────────────────────────
-        $listResponse = $this->actingAs($pegawai, 'sanctum')
-            ->getJson('/api/leave-requests');
+    /**
+     * INCREMENTAL STEP 7: Pegawai update request miliknya sendiri
+     */
+    public function test_incremental_7_pegawai_dapat_merubah_pengajuan_miliknya_sendiri()
+    {
+        $pegawai = User::factory()->pegawai()->create();
+        $leave = LeaveRequest::factory()->create([
+            'user_id' => $pegawai->id,
+            'status' => 'pending'
+        ]);
 
-        // ────────────────────────────────────────────────────────────────
-        // THEN: Pengajuan terlihat di daftar
-        // Menunjukkan data valid berhasil tersimpan dan queryable
-        // ────────────────────────────────────────────────────────────────
-        $listResponse->assertStatus(200)
-            ->assertJsonCount(1)
-            ->assertJsonPath('0.days', 6);
+        $response = $this->actingAs($pegawai, 'sanctum')
+            ->putJson("/api/leave-requests/{$leave->id}", [
+                'start_date' => '2026-06-10',
+                'end_date' => '2026-06-12',
+                'type' => 'sakit',
+                'reason' => 'Update alasan'
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('type', 'sakit')
+            ->assertJsonPath('days', 3);
+
+        $this->assertDatabaseHas('leave_requests', [
+            'id' => $leave->id,
+            'type' => 'sakit',
+            'days' => 3
+        ]);
+    }
+
+    //incremental pegawai tidak bisa merubah/update pengajuan pegawai lain
+     public function test_incremental_7_pegawai_tidak_dapat_merubah_pengajuan_pegawai_lain()
+    {
+        $pegawai1 = User::factory()->pegawai()->create();
+        $pegawai2 = User::factory()->pegawai()->create();
+
+        $leave = LeaveRequest::factory()->create([
+            'user_id' => $pegawai2->id,
+            'status' => 'pending'
+        ]);
+
+        $response = $this->actingAs($pegawai1, 'sanctum')
+            ->putJson("/api/leave-requests/{$leave->id}", [
+                'start_date' => '2026-06-10',
+                'end_date' => '2026-06-12',
+                'type' => 'sakit',
+                'reason' => 'Update alasan'
+            ]);
+
+        $response->assertStatus(403);
+
+        $this->assertDatabaseHas('leave_requests', [
+            'id' => $leave->id,
+            'user_id' => $pegawai2->id,
+            'type' => $leave->type,
+            'reason' => $leave->reason
+        ]);
+    }
+
+    /**
+     * INCREMENTAL STEP 8: Pegawai delete request miliknya sendiri
+     */
+    public function test_incremental_9_pegawai_dapat_menghapus_pengajuan_miliknya_sendiri()
+    {
+        $pegawai = User::factory()->pegawai()->create();
+        $leave = LeaveRequest::factory()->create([
+            'user_id' => $pegawai->id,
+            'status' => 'pending'
+        ]);
+
+        $response = $this->actingAs($pegawai, 'sanctum')
+            ->deleteJson("/api/leave-requests/{$leave->id}");
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseMissing('leave_requests', ['id' => $leave->id]);
+    }
+
+    //pegawaitidak bisa menghapus pengajuan pegawai lain
+    public function test_incremental_10_pegawai_tidak_dapat_menghapus_pengajuan_pegawai_lain()
+    {
+        $pegawai1 = User::factory()->pegawai()->create();
+        $pegawai2 = User::factory()->pegawai()->create();
+
+        $leave = LeaveRequest::factory()->create([
+            'user_id' => $pegawai2->id,
+            'status' => 'pending'
+        ]);
+
+        $response = $this->actingAs($pegawai1, 'sanctum')
+            ->deleteJson("/api/leave-requests/{$leave->id}");
+
+        $response->assertStatus(403);
+
+        $this->assertDatabaseHas('leave_requests', [
+            'id' => $leave->id,
+            'user_id' => $pegawai2->id
+        ]);
     }
 }

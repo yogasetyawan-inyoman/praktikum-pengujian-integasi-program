@@ -17,7 +17,7 @@ return new class extends Migration
             $table->date('start_date');
             $table->date('end_date');
             $table->integer('days');
-            $table->string('type');
+            $table->enum('type', ['tahunan', 'sakit', 'bersalin']);
             $table->text('reason')->nullable();
             $table->string('attachment')->nullable();
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');

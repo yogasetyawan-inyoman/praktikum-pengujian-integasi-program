@@ -28,7 +28,7 @@ class LeaveRequestFactory extends Factory
             'start_date' => $start->toDateString(),
             'end_date' => $end->toDateString(),
             'days' => 4,
-            'type' => $this->faker->randomElement(['tahunan', 'sakit', 'izin']),
+            'type' => $this->faker->randomElement(['tahunan', 'sakit', 'bersalin']),
             'reason' => $this->faker->sentence(),
             'status' => 'pending',
             'approved_by' => null,
