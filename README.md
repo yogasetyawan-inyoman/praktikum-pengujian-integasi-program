@@ -2,8 +2,19 @@
 
 **RESTful API untuk sistem pengajuan cuti karyawan** dengan role-based authorization dan comprehensive integration testing sebagai materi pembelajaran.
 
-## 📋 Fitur
+---
 
+## 🔧 Tech Stack
+- **PHP** 8.3 (VS16 x64 Non Thread Safe, [download here](https://www.php.net/downloads.php?os=windows&osvariant=windows-downloads&version=8.3))
+- **Laravel** 13.8
+- **MySQL** 8.0
+- **Laravel Sanctum** - API token authentication
+- **PHPUnit** 12.5 - Testing framework
+- **Carbon** 3.x - Date/time handling
+- **Faker** - Test data generation
+---
+
+## 📋 Fitur
 - ✅ User registration & login dengan API Token (Sanctum)
 - ✅ CRUD leave request dengan role-based filtering
 - ✅ Workflow: Submit → Pending → Approve/Reject
@@ -11,7 +22,6 @@
 - ✅ **30 comprehensive tests** (12 feature + 6 unauthorized + 3 integration workflows)
 - ✅ MySQL database dengan migrations
 - ✅ Detailed integration test examples untuk pembelajaran
-
 ## 🚀 Setup Lengkap untuk Peserta (Termasuk Lingkungan Testing)
 
 Ikuti langkah-langkah ini untuk menyiapkan proyek secara lengkap, termasuk konfigurasi database untuk pengembangan dan pengujian otomatis.
@@ -258,19 +268,7 @@ Setiap test dilengkapi:
 - ✅ Educational descriptions
 - ✅ Real-world business scenarios
 
----
 
-## 🔧 Tech Stack
-
-- **PHP** 8.3 (VS16 x64 Non Thread Safe, [download here](https://www.php.net/downloads.php?os=windows&osvariant=windows-downloads&version=8.3))
-- **Laravel** 13.8
-- **MySQL** 8.0
-- **Laravel Sanctum** - API token authentication
-- **PHPUnit** 12.5 - Testing framework
-- **Carbon** 3.x - Date/time handling
-- **Faker** - Test data generation
-
----
 
 ## � Libraries & Dependencies
 
