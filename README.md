@@ -17,14 +17,16 @@
 Ikuti langkah-langkah ini untuk menyiapkan proyek secara lengkap, termasuk konfigurasi database untuk pengembangan dan pengujian otomatis.
 
 ### 1. Clone Repository
+
 Gunakan git untuk menyalin proyek ke komputer lokal Anda.
 
 ```bash
 git clone <repository-url>
-cd praktikum-cuti
+cd praktikum-pengujian-integasi-program
 ```
 
 ### 2. Install & Update Dependencies
+
 Install semua library PHP (via Composer) dan JavaScript (via NPM).
 
 ```bash
@@ -37,6 +39,7 @@ composer update
 ```
 
 ### 3. Konfigurasi Environment Utama
+
 Salin file `.env.example` menjadi `.env` yang akan digunakan untuk konfigurasi lokal Anda, lalu generate `APP_KEY`.
 
 ```bash
@@ -48,9 +51,11 @@ php artisan key:generate
 ```
 
 ### 4. Buat Database MySQL
+
 Proyek ini memerlukan dua database terpisah:
-1.  `praktikum_cuti` untuk data pengembangan (real).
-2.  `praktikum_cuti_test` untuk data pengujian otomatis (testing).
+
+1. `praktikum_cuti` untuk data pengembangan (real).
+2. `praktikum_cuti_test` untuk data pengujian otomatis (testing).
 
 ```sql
 -- Jalankan perintah ini di MySQL client Anda (misal: HeidiSQL, phpMyAdmin)
@@ -59,6 +64,7 @@ CREATE DATABASE praktikum_cuti_test;
 ```
 
 ### 5. Konfigurasi Koneksi Database
+
 Buka file `.env` yang baru Anda buat dan sesuaikan konfigurasi database utama.
 
 ```ini
@@ -72,6 +78,7 @@ DB_PASSWORD=
 ```
 
 ### 6. Konfigurasi Database Testing
+
 Saat menjalankan PHPUnit, Laravel secara otomatis akan memuat file `.env.testing`. Buat file ini dengan menyalin `.env`, lalu ubah nama databasenya.
 
 ```bash
@@ -85,9 +92,11 @@ Sekarang, buka file **`.env.testing`** dan ubah nilai `DB_DATABASE` agar mengara
 # Ubah baris ini di dalam file .env.testing
 DB_DATABASE=praktikum_cuti_test
 ```
+
 Dengan cara ini, semua tes otomatis tidak akan mengganggu data di database `praktikum_cuti` Anda.
 
 ### 7. Jalankan Migrasi & Seeder
+
 Jalankan migrasi untuk membuat struktur tabel dan isi data awal (seed) hanya untuk database pengembangan (`praktikum_cuti`).
 
 ```bash
@@ -97,9 +106,11 @@ php artisan migrate
 # Mengisi data awal (user, dll) ke database utama
 php artisan db:seed
 ```
+
 *Catatan: Migrasi untuk database testing (`praktikum_cuti_test`) akan dijalankan secara otomatis oleh PHPUnit setiap kali Anda menjalankan tes.*
 
 ### 8. Jalankan Server & Tests
+
 Setelah semua langkah selesai, Anda siap menjalankan server pengembangan dan seluruh rangkaian pengujian.
 
 ```bash
@@ -137,11 +148,13 @@ php artisan test tests/Integration/LeaveRequestWorkflowTest.php
 ## 📚 API Endpoints
 
 ### 🔐 Authentication
+
 - `POST /api/register` - Register user baru
 - `POST /api/login` - Login & dapatkan token
 - `POST /api/logout` - Logout (auth:sanctum)
 
 ### 📋 Leave Requests
+
 - `GET /api/leave-requests` - Daftar pengajuan (auth:sanctum)
 - `POST /api/leave-requests` - Buat pengajuan (auth:sanctum, pegawai only)
 - `GET /api/leave-requests/{id}` - Detail pengajuan
@@ -154,11 +167,11 @@ php artisan test tests/Integration/LeaveRequestWorkflowTest.php
 
 ## 👥 Roles & Permissions
 
-| Role | Permissions |
-|------|------------|
+| Role              | Permissions                                                               |
+| ----------------- | ------------------------------------------------------------------------- |
 | **Pegawai** | Submit pengajuan, lihat pengajuan sendiri, update/delete pending requests |
-| **Atasan** | Lihat pending requests saja, approve/reject pengajuan |
-| **Admin** | Lihat SEMUA requests, approve/reject semua |
+| **Atasan**  | Lihat pending requests saja, approve/reject pengajuan                     |
+| **Admin**   | Lihat SEMUA requests, approve/reject semua                                |
 
 ---
 
@@ -202,6 +215,7 @@ tests/
 File: `tests/Integration/LeaveRequestWorkflowTest.php`
 
 #### **Workflow #1: End-to-End - Pegawai Submit Cuti**
+
 ```
 GIVEN: Pegawai berhasil login
 WHEN: Submit pengajuan cuti 5 hari (15-19 Juni)
@@ -212,6 +226,7 @@ THEN:
 ```
 
 #### **Workflow #2: Role-Based Authorization - Atasan Approve**
+
 ```
 GIVEN: Pegawai sudah submit pengajuan pending
 AND: Atasan berhasil login
@@ -224,6 +239,7 @@ THEN:
 ```
 
 #### **Workflow #3: Validation & Error Handling**
+
 ```
 GIVEN: Pegawai siap submit pengajuan
 WHEN: Submit dengan tanggal invalid (end_date < start_date)
@@ -236,6 +252,7 @@ THEN:
 ```
 
 Setiap test dilengkapi:
+
 - ✅ GIVEN-WHEN-THEN comments
 - ✅ Testing layers explanation (Auth, Validation, DB, Query)
 - ✅ Educational descriptions
@@ -245,7 +262,7 @@ Setiap test dilengkapi:
 
 ## 🔧 Tech Stack
 
-- **PHP** 8.3
+- **PHP** 8.3 (VS16 x64 Non Thread Safe, [download here](https://www.php.net/downloads.php?os=windows&osvariant=windows-downloads&version=8.3))
 - **Laravel** 13.8
 - **MySQL** 8.0
 - **Laravel Sanctum** - API token authentication
@@ -255,9 +272,32 @@ Setiap test dilengkapi:
 
 ---
 
-## 📖 Dokumentasi Lengkap
+## � Libraries & Dependencies
+
+Proyek ini menggunakan beberapa library utama untuk fungsionalitas dan pengembangan.
+
+### Dependencies Utama (`require`)
+| Library | Versi | Deskripsi |
+|---|---|---|
+| `laravel/framework` | ^13.8 | Framework utama yang menjadi dasar aplikasi. |
+| `laravel/sanctum` | ^4.3 | Digunakan untuk otentikasi API berbasis token yang ringan. |
+| `laravel/tinker` | ^3.0 | Menyediakan shell interaktif (REPL) untuk berinteraksi dengan aplikasi. |
+
+### Dependencies Pengembangan (`require-dev`)
+| Library | Versi | Deskripsi |
+|---|---|---|
+| `phpunit/phpunit` | ^12.5 | Framework utama untuk menjalankan unit, feature, dan integration tests. |
+| `fakerphp/faker` | ^1.23 | Digunakan untuk membuat data palsu (fake data) saat testing. |
+| `mockery/mockery` | ^1.6 | Framework untuk membuat objek tiruan (mock objects) dalam tes. |
+| `laravel/pint` | ^1.27 | Alat untuk memastikan konsistensi gaya penulisan kode (code style). |
+| `nunomaduro/collision`| ^8.6 | Memberikan tampilan error yang lebih informatif di command line. |
+
+---
+
+## �📖 Dokumentasi Lengkap
 
 ### Login & Dapatkan Token
+
 ```bash
 curl -X POST http://localhost:8000/api/login \
   -H "Content-Type: application/json" \
@@ -268,6 +308,7 @@ curl -X POST http://localhost:8000/api/login \
 ```
 
 **Response:**
+
 ```json
 {
   "token": "3|xxxx...",
@@ -281,6 +322,7 @@ curl -X POST http://localhost:8000/api/login \
 ```
 
 ### Submit Pengajuan Cuti (dengan token)
+
 ```bash
 curl -X POST http://localhost:8000/api/leave-requests \
   -H "Authorization: Bearer 3|xxxx..." \
