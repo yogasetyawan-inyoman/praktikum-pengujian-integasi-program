@@ -24,7 +24,7 @@ class LeaveRequestController extends Controller
         } else { // admin
             $list = LeaveRequest::latest()->get();
         }
-        return response()->json($list);
+        return response()->json($list,200);
     }
 
     /**
@@ -68,11 +68,15 @@ class LeaveRequestController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show($id)
+    public function show($id, Request $r)
     {
         //
         try {
-            return response()->json(LeaveRequest::findOrFail($id));
+            $lr = LeaveRequest::findOrFail($id);
+            if ($lr->user_id !== $r->user()->id) {
+                return response()->json(['message' => 'Forbidden'], 403);
+            }
+            return response()->json($lr, 200);
         } catch (ModelNotFoundException $e) {
             return response()->json(['message' => 'Pengajuan cuti tidak ditemukan'], 404);
         }

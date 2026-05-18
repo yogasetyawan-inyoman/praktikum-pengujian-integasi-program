@@ -40,7 +40,7 @@ class LeaveRequestWorkflowTest extends TestCase
             'email' => 'budi@company.com'
         ]);
 
-        $response = $this->actingAs($pegawai, 'sanctum')
+        $response = $this->actingAs($pegawai, 'sanctum')//mengautentikasi sebagai pegawai yang sudah dibuat sebelumnya.
             ->postJson('/api/leave-requests', [ //mengirim request POST dalam format JSON.
                 'start_date' => '2026-06-15',
                 'end_date' => '2026-06-17',
@@ -332,6 +332,39 @@ class LeaveRequestWorkflowTest extends TestCase
         $this->assertDatabaseHas('leave_requests', [//memastikan database memiliki record di tabel leave_requests dengan data yang sesuai untuk memastikan pengajuan milik pegawai kedua tidak terhapus.
             'id' => $leave->id,//menentukan ID pengajuan yang sama untuk memastikan record yang diperiksa adalah pengajuan yang tidak boleh dihapus.
             'user_id' => $pegawai2->id//menentukan user_id sesuai dengan ID pegawai kedua untuk memastikan record yang diperiksa adalah pengajuan milik pegawai kedua.
+        ]);
+    }
+
+    //pegawai tidak dapat mengubah atau menghapus pengajuan yang sudah diapprove atau direject
+    public function test_incremental_11_pegawai_tidak_dapat_merubah_atau_menghapus_pengajuan_tidak_pending()
+    {
+        $pegawai = User::factory()->pegawai()->create();//membuat user dengan role pegawai untuk keperluan testing.
+        $leave = LeaveRequest::factory()->create([//membuat data pengajuan cuti untuk pegawai yang sedah login dengan status approved melalui factory.
+            'user_id' => $pegawai->id,
+            'status' => 'approved'
+        ]);
+
+        // Coba update pengajuan yang sudah approved
+        $response = $this->actingAs($pegawai, 'sanctum')//mengautentikasi sebagai pegawai yang sudah dibuat sebelumnya.
+            ->putJson("/api/leave-requests/{$leave->id}", [//mengirim request PUT dalam format JSON untuk mencoba mengubah pengajuan cuti yang sudah approved berdasarkan ID pengajuan.
+                'start_date' => '2026-07-15',
+                'end_date' => '2026-07-17',
+                'type' => 'tahunan',
+                'reason' => 'Liburan keluarga diubah'
+            ]);
+
+        $response->assertStatus(403);//memastikan response HTTP 403 Forbidden yang menandakan pegawai tidak memiliki izin untuk mengubah pengajuan yang sudah approved.
+
+        // Coba delete pengajuan yang sudah approved
+        $response = $this->actingAs($pegawai, 'sanctum')//mengautentikasi sebagai pegawai yang sudah dibuat sebelumnya.
+            ->deleteJson("/api/leave-requests/{$leave->id}");//mengirim request DELETE dalam format JSON untuk mencoba menghapus pengajuan cuti yang sudah approved berdasarkan ID pengajuan.
+
+        $response->assertStatus(403);//memastikan response HTTP 403 Forbidden yang menandakan pegawai tidak memiliki izin untuk menghapus pengajuan yang sudah approved.
+
+        $this->assertDatabaseHas('leave_requests', [//memastikan database memiliki record di tabel leave_requests dengan data yang sesuai untuk memastikan pengajuan masih ada dan tidak berubah.
+            'id' => $leave->id,//menentukan ID pengajuan yang sama untuk memastikan record yang diperiksa adalah pengajuan yang tidak boleh diubah.
+            'user_id' => $pegawai->id,//menentukan user_id sesuai dengan ID pegawai untuk memastikan record yang diperiksa adalah pengajuan milik pegawai.
+            'status' => 'approved'//menentukan status tetap approved untuk memastikan pengajuan tidak berubah statusnya.
         ]);
     }
 }
