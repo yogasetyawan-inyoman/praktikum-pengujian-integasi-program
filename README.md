@@ -12,43 +12,104 @@
 - ✅ MySQL database dengan migrations
 - ✅ Detailed integration test examples untuk pembelajaran
 
-## 🚀 Quick Start (untuk peserta)
+## 🚀 Setup Lengkap untuk Peserta (Termasuk Lingkungan Testing)
+
+Ikuti langkah-langkah ini untuk menyiapkan proyek secara lengkap, termasuk konfigurasi database untuk pengembangan dan pengujian otomatis.
 
 ### 1. Clone Repository
+Gunakan git untuk menyalin proyek ke komputer lokal Anda.
+
 ```bash
 git clone <repository-url>
 cd praktikum-cuti
 ```
 
-### 2. Install Dependencies
+### 2. Install & Update Dependencies
+Install semua library PHP (via Composer) dan JavaScript (via NPM).
+
 ```bash
+# Install dependencies
 composer install
 npm install
+
+# Opsional: Update libraries ke versi terbaru jika diperlukan
+composer update
 ```
 
-### 3. Setup Environment
+### 3. Konfigurasi Environment Utama
+Salin file `.env.example` menjadi `.env` yang akan digunakan untuk konfigurasi lokal Anda, lalu generate `APP_KEY`.
+
 ```bash
-# Copy environment file
+# Salin file environment
 cp .env.example .env
 
 # Generate APP_KEY
 php artisan key:generate
 ```
 
-### 4. Database Setup
-```bash
-# Buat database MySQL terlebih dahulu:
-# mysql> CREATE DATABASE praktikum_cuti;
+### 4. Buat Database MySQL
+Proyek ini memerlukan dua database terpisah:
+1.  `praktikum_cuti` untuk data pengembangan (real).
+2.  `praktikum_cuti_test` untuk data pengujian otomatis (testing).
 
-# Jalankan migrations
+```sql
+-- Jalankan perintah ini di MySQL client Anda (misal: HeidiSQL, phpMyAdmin)
+CREATE DATABASE praktikum_cuti;
+CREATE DATABASE praktikum_cuti_test;
+```
+
+### 5. Konfigurasi Koneksi Database
+Buka file `.env` yang baru Anda buat dan sesuaikan konfigurasi database utama.
+
+```ini
+# Contoh konfigurasi di file .env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=praktikum_cuti
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+### 6. Konfigurasi Database Testing
+Saat menjalankan PHPUnit, Laravel secara otomatis akan memuat file `.env.testing`. Buat file ini dengan menyalin `.env`, lalu ubah nama databasenya.
+
+```bash
+# Salin file .env menjadi .env.testing
+cp .env .env.testing
+```
+
+Sekarang, buka file **`.env.testing`** dan ubah nilai `DB_DATABASE` agar mengarah ke database pengujian.
+
+```ini
+# Ubah baris ini di dalam file .env.testing
+DB_DATABASE=praktikum_cuti_test
+```
+Dengan cara ini, semua tes otomatis tidak akan mengganggu data di database `praktikum_cuti` Anda.
+
+### 7. Jalankan Migrasi & Seeder
+Jalankan migrasi untuk membuat struktur tabel dan isi data awal (seed) hanya untuk database pengembangan (`praktikum_cuti`).
+
+```bash
+# Menjalankan migrasi untuk database utama (praktikum_cuti)
 php artisan migrate
-```
 
-### 5. Jalankan Server
-```bash
-php artisan serve
+# Mengisi data awal (user, dll) ke database utama
+php artisan db:seed
 ```
-Server berjalan di: **http://localhost:8000**
+*Catatan: Migrasi untuk database testing (`praktikum_cuti_test`) akan dijalankan secara otomatis oleh PHPUnit setiap kali Anda menjalankan tes.*
+
+### 8. Jalankan Server & Tests
+Setelah semua langkah selesai, Anda siap menjalankan server pengembangan dan seluruh rangkaian pengujian.
+
+```bash
+# Jalankan server lokal (biasanya di http://localhost:8000)
+php artisan serve
+
+# Jalankan semua test untuk memastikan setup berhasil
+# Perintah ini akan menggunakan .env.testing dan database praktikum_cuti_test
+composer test
+```
 
 ---
 

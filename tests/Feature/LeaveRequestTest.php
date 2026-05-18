@@ -17,7 +17,7 @@ class LeaveRequestTest extends TestCase
         $response = $this->actingAs($pegawai, 'sanctum')
             ->postJson('/api/leave-requests', [
                 'start_date' => '2026-06-01',
-                'end_date' => '2026-05-03',
+                'end_date' => '2026-06-03',
                 'type' => 'tahunan',
                 'reason' => 'Liburan keluarga'
             ]);
